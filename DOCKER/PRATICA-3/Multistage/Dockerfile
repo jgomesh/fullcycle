@@ -1,17 +1,19 @@
+# Stage 1: Builder
 FROM php:7.4-cli AS builder
 
 WORKDIR /var/www
 
 RUN apt-get update && \
-    apt-get install libzip -y && \
+    apt-get install libzip-dev -y && \
     docker-php-ext-install zip
 
 RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" &&\
-    php composer-setup.php && \
+    php composer-setup.php --install-dir=/usr/local/bin --filename=composer && \
     php -r "unlink('composer-setup.php');"
 
-RUN php composer.phar create-project --prefer-dist laravel/laravel laravel
+RUN composer create-project --prefer-dist laravel/laravel laravel
 
+# Stage 2: PHP-FPM
 FROM php:7.4-fpm-alpine
 
 WORKDIR /var/www
@@ -21,6 +23,8 @@ RUN rm -rf /var/www/html
 COPY --from=builder /var/www/laravel .
 
 RUN chown -R www-data:www-data /var/www
+
+RUN ln -s public html
 
 EXPOSE 9000
 
